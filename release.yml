@@ -1,0 +1,80 @@
+name: Creating release version
+on: 
+  workflow_call:
+    inputs:
+      release_version:
+        required: true
+        type: string
+jobs:        
+  release:
+   permissions: write-all
+   runs-on: ${{ matrix.os }}
+   strategy:
+      matrix:
+        os: [macos-latest]
+   if: ${{ endsWith(github.event.head_commit.message, '[release]') }}
+   steps:
+    - name: Checkout de repositorio
+      uses: actions/checkout@v3
+      with:
+        ref: develop
+    - name: Crear rama
+      run: |
+        git fetch origin
+        git checkout develop
+        git pull
+        git checkout -b ${{inputs.release_version}}
+        git push -f -u origin ${{inputs.release_version}}
+    - name: Mezcla develop -> release
+      uses: tukasz/direct-merge-action@master
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        source-branch: develop
+        target-branch: ${{inputs.release_version}}
+        commit-message: "Se actualiza la rama release con la rama develop. Release is ready to merge in main!"
+  pruebas:
+    needs: release
+    name: Pruebas
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest]
+    steps:     
+    - name: Checkout de repositorio
+      uses: actions/checkout@v3
+      with:
+        ref: ${{inputs.release_version}}
+    - name: Configuración de entorno de python
+      uses: actions/setup-python@v4
+      with:
+          python-version: '3.9'
+    - name: Instalación de librerías y dependencias
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Correr pruebas
+      id: correr-pruebas
+      run: |
+        python -m unittest -v 
+    - name:  Cubrimiento personalizado   
+      id: cubrimiento
+      run: |
+          coverage run -m unittest
+          coverage report --fail-under=98  
+          
+    - name: Mezcla release -> main
+      uses: tukasz/direct-merge-action@master
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        source-branch: ${{inputs.release_version}}
+        target-branch: main
+        commit-message: "Se integra rama ${{inputs.release_version}} en main. Rama main actualizada"
+    - name: Mezcla release -> develop
+      uses: tukasz/direct-merge-action@master
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        source-branch: ${{inputs.release_version}}
+        target-branch: develop
+        commit-message: "Se integra rama ${{inputs.release_version}} en develop. Rama develop actualizada"
+           
+    
