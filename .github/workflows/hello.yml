@@ -1,22 +1,26 @@
-name: Pruebas unitarias
+name: Hola mundo prueba 2
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 jobs:
-  job1:
-    name: Pruebas
-    runs-on: ubuntu-latest
+  Mi-primer-job:
+    name: Mi primer job 
+    runs-on: windows-latest
+    outputs:
+      salida: ${{ steps.imprimir.outputs.respuesta }}
     steps:
-    - name: Checkout de repositorio
-      uses: actions/checkout@v2
-    - name: Configuración de entorno de python
-      uses: actions/setup-python@v2
-      with:
-          python-version: '3.7'
-    - name: Instalación de librerías y dependencias
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    - name: Correr pruebas
-      id: correr-pruebas
-      run: python -m unittest -v tests/test_persona.py
+    - name: Imprimir
+      id: imprimir
+      env:
+        MI_VARIABLE: Hola mundo
+      run: echo "::set-output name=respuesta::${MI_VARIABLE}"
+
+  Mi-segundo-job:
+    needs: Mi-primer-job
+    name: Mi segundo job
+    runs-on: windows-latest
+    steps:
+    
+    - name: Imprimir
+      id: imprimir
+      run: echo "${{needs.Mi-primer-job.outputs.salida}}"
